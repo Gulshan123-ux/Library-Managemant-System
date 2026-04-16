@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Library & Dashboard System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --container-bg: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --accent: #3b82f6; --accent-hover: #2563eb;
+            --accent-return: #10b981; --accent-return-hover: #059669;
+        }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #020617 0%, #0f172a 100%); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+        header { width: 90%; max-width: 1200px; padding: 2rem 0 1rem; display: flex; justify-content: space-between; align-items: center; }
+        h1 { font-size: 2.5rem; margin: 0; background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .dashboard-bar { width: 90%; max-width: 1200px; display: flex; gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; text-align: center; }
+        .stat-card h3 { margin: 0; font-size: 2rem; color: #38bdf8; }
+        .stat-card p { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        
+        .container { width: 90%; max-width: 1200px; background: var(--container-bg); backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: 16px; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+        .books-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+        .book-card { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; position: relative; }
+        .book-title { font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem 0; }
+        .status { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; margin-bottom: 1rem; }
+        .status.available { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .status.borrowed { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .branch-badge { position: absolute; right: 1rem; top: 1.5rem; font-size: 0.75rem; background: #475569; padding: 0.25rem 0.5rem; border-radius: 6px; }
+        
+        button { padding: 0.75rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: transform 0.1s; display: inline-block; }
+        button:active { transform: scale(0.98); }
+        input, select { padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: white; display: block; width: 100%; box-sizing: border-box; }
+        
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 100; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--container-bg); border: 1px solid var(--border-color); padding: 2rem; border-radius: 12px; width: 500px; max-height: 85vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        .history-list, .audit-list { list-style: none; padding: 0; font-size: 0.9rem; }
+        .history-list li, .audit-list li { background: rgba(0,0,0,0.2); padding: 0.75rem; margin-bottom:0.5rem; border-radius:8px;}
+        
+        #toast { visibility: hidden; min-width: 250px; background-color: rgba(30,41,59,0.9); color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%); opacity: 0; transition: opacity 0.5s, bottom 0.5s; }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Library System</h1>
+        <div id="nav-controls" style="display: flex; gap: 1rem;">
+            <button onclick="document.getElementById('loginModal').classList.add('active')" style="background:var(--accent); color:white;">Login</button>
+        </div>
+    </header>
+
+    <div class="dashboard-bar">
+        <div class="stat-card">
+            <h3 id="statTotalBooks">-</h3>
+            <p>Total Books</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="statActiveLoans">-</h3>
+            <p>Active Loans</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="statOverdue" style="color:#f43f5e">-</h3>
+            <p>Overdue Items</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="statUsers">-</h3>
+            <p>Users Online</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 style="margin-top:0">Catalog</h2>
+        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+            <button style="background:#eab308; color:black; font-weight:bold" onclick="startScanner()">[] Scan QR</button>
+            <input type="text" id="searchInput" placeholder="Search Title, Author, or ISBN..." style="flex: 3; margin: 0;" onkeyup="filterBooks()">
+            <select id="branchFilter" style="flex: 1;" onchange="filterBooks()">
+                <option value="" style="color: black;">All Branches</option>
+                <option value="Main Library" style="color: black;">Main Library</option>
+                <option value="Downtown Branch" style="color: black;">Downtown Branch</option>
+                <option value="North Campus" style="color: black;">North Campus</option>
+            </select>
+            <select id="categoryFilter" style="flex: 1;" onchange="filterBooks()">
+                <option value="" style="color: black;">All Categories</option>
+                <option value="Science" style="color: black;">Science</option>
+                <option value="Fiction" style="color: black;">Fiction</option>
+                <option value="Non-Fiction" style="color: black;">Non-Fiction</option>
+                <option value="Thriller" style="color: black;">Thriller</option>
+                <option value="Romance" style="color: black;">Romance</option>
+                <option value="Self-Help" style="color: black;">Self-Help</option>
+                <option value="Business" style="color: black;">Business</option>
+                <option value="Psychology" style="color: black;">Psychology</option>
+                <option value="Biography" style="color: black;">Biography</option>
+                <option value="Computer Science" style="color: black;">Computer Science</option>
+            </select>
+        </div>
+        <div class="books-grid" id="books-container"></div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="loginModal">
+        <div class="modal-content" style="width: 350px;">
+            <h2 style="margin-top:0">Authentication</h2>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <input type="text" id="username" placeholder="Username" required style="margin-bottom:1rem">
+                <input type="password" id="password" placeholder="Password" required style="margin-bottom:1rem">
+                <div style="display:flex; gap:1rem">
+                    <button type="submit" style="background:var(--accent); color:white; flex:1">Login</button>
+                    <button type="button" style="background:#475569; color:white;" onclick="document.getElementById('loginModal').classList.remove('active')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="settingsModal">
+        <div class="modal-content" style="width: 400px;">
+            <h2 style="margin-top:0">Settings / Change Password</h2>
+            <form onsubmit="handleChangePassword(event)">
+                <input type="password" id="oldPassword" placeholder="Current Password" required style="margin-bottom:1rem">
+                <input type="password" id="newPassword" placeholder="New Password" required style="margin-bottom:1rem">
+                <div style="display:flex; gap:1rem">
+                    <button type="submit" style="background:var(--accent); color:white; flex:1">Update</button>
+                    <button type="button" style="background:#475569; color:white;" onclick="document.getElementById('settingsModal').classList.remove('active')">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="profileModal">
+        <div class="modal-content" style="width: 600px;">
+            <h2 style="margin-top:0">My Profile Area</h2>
+            <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 1rem; margin-bottom:1rem;">
+                <p style="margin:0"><b>Role:</b> <span id="profRole"></span> (<span id="profType"></span>) | <b>Expiry:</b> <span id="profExpiry"></span></p>
+                <button type="button" style="background:var(--accent); color:white; padding:0.4rem; font-size:0.8rem; margin-top:0.5rem" onclick="document.getElementById('settingsModal').classList.add('active')">Lock Account (Change Password)</button>
+            </div>
+            
+            <div id="auditView" style="display:none; margin-bottom:1rem; padding:1rem; border:1px solid #f59e0b; border-radius:8px;">
+                <h3 style="color:#f59e0b; margin-top:0;">Admin Audit Logs</h3>
+                <ul class="audit-list" id="profAudit" style="max-height:150px; overflow-y:auto;"></ul>
+            </div>
+            
+            <h3>Transaction History</h3>
+            <ul class="history-list" id="profHistory"></ul>
+            <button type="button" style="background:#475569; color:white; width: 100%" onclick="document.getElementById('profileModal').classList.remove('active')">Close Panel</button>
+        </div>
+    </div>
+
+    <div class="modal" id="adminModal">
+        <div class="modal-content">
+            <h2 style="margin-top:0">Admin: Add Book</h2>
+            <form id="addBookForm" onsubmit="handleAddBook(event)">
+                <input type="text" id="addTitle" placeholder="Title" required style="margin-bottom:0.5rem">
+                <input type="text" id="addAuthor" placeholder="Author" required style="margin-bottom:0.5rem">
+                <input type="text" id="addIsbn" placeholder="ISBN (e.g. 978123)" required style="margin-bottom:0.5rem">
+                <select id="addCategory" required style="margin-bottom:0.5rem">
+                    <option value="Science">Science</option><option value="Fiction">Fiction</option><option value="Non-Fiction">Non-Fiction</option>
+                    <option value="Thriller">Thriller</option><option value="Romance">Romance</option><option value="Self-Help">Self-Help</option>
+                    <option value="Business">Business</option><option value="Psychology">Psychology</option>
+                    <option value="Biography">Biography</option><option value="Computer Science">Computer Science</option>
+                </select>
+                <select id="addBranch" required style="margin-bottom:0.5rem">
+                    <option value="Main Library">Main Library</option><option value="Downtown Branch">Downtown Branch</option><option value="North Campus">North Campus</option>
+                </select>
+                <input type="text" id="addEbook" placeholder="E-Book Link (e.g. Google Drive URL) [Optional]" style="margin-bottom:0.5rem">
+                <input type="number" id="addCopies" placeholder="Total Copies" required style="margin-bottom:1rem">
+                <div style="display:flex; gap:1rem">
+                    <button type="submit" style="background:var(--accent-return); color:white; flex:1">Add Book</button>
+                    <button type="button" style="background:#475569; color:white;" onclick="document.getElementById('adminModal').classList.remove('active')">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="qrModal">
+        <div class="modal-content" style="text-align:center;">
+            <h2 style="margin-top:0">Scan ISBN Barcode</h2>
+            <div id="reader" style="width:100%; border:1px solid var(--border-color); border-radius:8px;"></div>
+            <button style="background:#ef4444; color:white; margin-top:1rem; width:100%" onclick="stopScanner()">Cancel Scanner</button>
+        </div>
+    </div>
+
+    <div id="toast">Message</div>
+
+    <script>
+        let currentRole = null;
+        let allBooks = [];
+        let html5QrcodeScanner = null;
+        
+        async function fetchBooks() {
+            try {
+                const response = await fetch('/api/books');
+                allBooks = await response.json();
+                filterBooks();
+                fetchStats();
+            } catch (error) { showToast("Failed to load generic assets."); }
+        }
+
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const s = await res.json();
+                document.getElementById('statTotalBooks').innerText = s.totalBooks;
+                document.getElementById('statActiveLoans').innerText = s.activeLoans;
+                document.getElementById('statOverdue').innerText = s.overdueItems;
+                document.getElementById('statUsers').innerText = s.activeSessions + ' / ' + s.registeredUsers;
+            } catch(e) {}
+        }
+
+        function filterBooks() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const cat = document.getElementById('categoryFilter').value;
+            const branch = document.getElementById('branchFilter').value;
+            const filtered = allBooks.filter(b => {
+                const matchesText = b.title.toLowerCase().includes(query) || b.author.toLowerCase().includes(query) || (b.isbn && b.isbn.includes(query));
+                const matchesCat = cat === "" || b.category === cat;
+                const matchesBranch = branch === "" || b.branchName === branch;
+                return matchesText && matchesCat && matchesBranch;
+            });
+            renderBooks(filtered);
+        }
+
+        function renderBooks(books) {
+            const container = document.getElementById('books-container');
+            container.innerHTML = '';
+            books.forEach(book => {
+                const isAvail = book.available;
+                const statusClass = isAvail ? 'available' : 'borrowed';
+                const statusText = isAvail ? (book.availableCopies + ' / ' + book.totalCopies + ' Available') : 'Out of Stock';
+                const ebookBtn = book.ebookUrl ? `<button style="background:#f59e0b; color:white; width:100%; margin-top:0.5rem" onclick="window.open('${book.ebookUrl}','_blank')">Read E-Book</button>` : '';
+
+                const card = document.createElement('div');
+                card.className = 'book-card';
+                card.innerHTML = `
+                    <div class="branch-badge">${book.branchName}</div>
+                    <div class="status ${statusClass}">${statusText}</div>
+                    <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem">ISBN: ${book.isbn || 'N/A'} | ${book.category || 'N/A'}</div>
+                    <h3 class="book-title">${book.title}</h3>
+                    <p class="book-author" style="margin-bottom:0.5rem">By ${book.author}</p>
+                    ${ebookBtn}
+                    <div style="display: flex; gap: 0.5rem; margin-top:1rem">
+                        <button style="background:var(--accent); color:white; flex:2" onclick="performAction('borrow', '${book.title}', '${book.author}')">Borrow</button>
+                        <button style="background:#ec4899; color:white; flex:2" onclick="performAction('return', '${book.title}', '${book.author}')">Return</button>
+                    </div>
+                    ${currentRole === 'ADMIN' ? `<button style="background:#ef4444; color:white; width:100%; margin-top:0.5rem" onclick="deleteBook('${book.isbn}')">Delete (Admin)</button>` : ''}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function startScanner() {
+            document.getElementById('qrModal').classList.add('active');
+            if(!html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+                html5QrcodeScanner.render(onScanSuccess, (e)=>{});
+            }
+        }
+        function stopScanner() {
+            if(html5QrcodeScanner) { html5QrcodeScanner.clear(); html5QrcodeScanner = null; }
+            document.getElementById('qrModal').classList.remove('active');
+        }
+        function onScanSuccess(decodedText) {
+            document.getElementById('searchInput').value = decodedText;
+            stopScanner();
+            filterBooks();
+            showToast("Scanned ISBN: " + decodedText);
+        }
+
+        async function performAction(action, title, author) {
+            try {
+                const response = await fetch('/api/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=${action}&title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}`
+                });
+                if(response.status === 401) return document.getElementById('loginModal').classList.add('active');
+                const result = await response.json();
+                showToast(result.message);
+                fetchBooks();
+            } catch (error) {}
+        }
+
+        async function deleteBook(isbn) {
+            if(!confirm("Are you sure you want to delete this book?")) return;
+            const res = await fetch('/api/admin/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `isbn=${encodeURIComponent(isbn)}`
+            });
+            const dat = await res.json();
+            showToast(dat.message || "Failed");
+            fetchBooks();
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `username=${encodeURIComponent(document.getElementById('username').value)}&password=${encodeURIComponent(document.getElementById('password').value)}`
+            });
+            const result = await response.json();
+            if(result.success) {
+                currentRole = result.role;
+                document.getElementById('loginModal').classList.remove('active');
+                updateNav(); filterBooks(); fetchStats();
+                showToast("Logged in as " + currentRole);
+            } else showToast(result.message);
+        }
+
+        async function handleChangePassword(e) {
+            e.preventDefault();
+            const res = await fetch('/api/settings/password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `oldPassword=${encodeURIComponent(document.getElementById('oldPassword').value)}&newPassword=${encodeURIComponent(document.getElementById('newPassword').value)}`
+            });
+            const data = await res.json();
+            showToast(data.message);
+            if(res.status === 200) document.getElementById('settingsModal').classList.remove('active');
+        }
+        
+        async function handleLogout() {
+            await fetch('/api/logout', { method: 'POST' });
+            currentRole = null;
+            updateNav(); filterBooks(); fetchStats();
+        }
+
+        async function openProfile() {
+            const pRes = await fetch('/api/profile');
+            const hRes = await fetch('/api/history');
+            if(pRes.status === 401) return;
+            
+            const profile = await pRes.json();
+            const history = await hRes.json();
+            
+            document.getElementById('profRole').innerText = profile.role;
+            document.getElementById('profType').innerText = profile.membershipType;
+            document.getElementById('profExpiry').innerText = profile.membershipExpiry;
+            
+            const ul = document.getElementById('profHistory');
+            ul.innerHTML = history.length === 0 ? "<li>No transactions</li>" : history.map(t => {
+                const overdueTag = t.overdue && !t.returned ? " <b style='color:#f43f5e'>(OVERDUE)</b>" : "";
+                const returnStr = t.returned ? `Returned: ${t.returnDate.substring(0,10)}` : `Due: ${t.dueDate.substring(0,10)}`;
+                return `<li><b>${t.title}</b><br><small>Borrowed: ${t.issueDate.substring(0,10)} | ${returnStr}</small>${overdueTag}</li>`
+            }).join('');
+            
+            if(currentRole === 'ADMIN') {
+                document.getElementById('auditView').style.display = 'block';
+                const aRes = await fetch('/api/audit');
+                const auditContent = await aRes.json();
+                document.getElementById('profAudit').innerHTML = auditContent.map(a => `<li><small>[${a.timestamp.substring(11,19)}]</small> <b>${a.username}</b> <span style="background:rgba(255,255,255,0.1);padding:2px 4px;border-radius:4px">${a.action}</span> - ${a.details}</li>`).join('');
+            } else {
+                document.getElementById('auditView').style.display = 'none';
+            }
+            document.getElementById('profileModal').classList.add('active');
+        }
+
+        async function handleAddBook(e) {
+            e.preventDefault();
+            const data = `title=${encodeURIComponent(document.getElementById('addTitle').value)}&author=${encodeURIComponent(document.getElementById('addAuthor').value)}&isbn=${encodeURIComponent(document.getElementById('addIsbn').value)}&category=${encodeURIComponent(document.getElementById('addCategory').value)}&branch=${encodeURIComponent(document.getElementById('addBranch').value)}&ebook=${encodeURIComponent(document.getElementById('addEbook').value)}&copies=${encodeURIComponent(document.getElementById('addCopies').value)}`;
+            const response = await fetch('/api/admin/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: data
+            });
+            const result = await response.json();
+            showToast(result.message);
+            if(response.status===200) document.getElementById('adminModal').classList.remove('active');
+            fetchBooks();
+        }
+
+        function updateNav() {
+            const nav = document.getElementById('nav-controls');
+            if(currentRole) {
+                let adminBtn = currentRole === 'ADMIN' ? `<button onclick="document.getElementById('adminModal').classList.add('active')" style="background:#10b981; color:white;">Admin Tools</button>` : '';
+                nav.innerHTML = `
+                    <button onclick="openProfile()" style="background:#6366f1; color:white;">My Profile & Audit</button>
+                    ${adminBtn}
+                    <button onclick="handleLogout()" style="background:#ef4444; color:white;">Logout</button>
+                `;
+            } else {
+                nav.innerHTML = `<button onclick="document.getElementById('loginModal').classList.add('active')" style="background:var(--accent); color:white;">Login</button>`;
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById("toast");
+            toast.innerText = msg; toast.className = "show";
+            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+        }
+
+        fetchBooks();
+    </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+Title,Author,ISBN,Category,Branch,Ebook,Copies
+Pride and Prejudice,Jane Austen,9001,Romance,North Campus,,4
+The Notebook,Nicholas Sparks,9002,Romance,Main Library,,3
+Outlander,Diana Gabaldon,9003,Romance,Downtown Branch,,2
+Sapiens: A Brief History of Humankind,Yuval Noah Harari,9004,Non-Fiction,Downtown Branch,,5
+Educated: A Memoir,Tara Westover,9005,Non-Fiction,Main Library,https://example.com/educated.pdf,2
+The Immortal Life of Henrietta Lacks,Rebecca Skloot,9006,Non-Fiction,North Campus,,4

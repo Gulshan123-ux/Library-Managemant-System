@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Details | Premium Library System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --container-bg: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-return: #10b981;
+            --accent-return-hover: #059669;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            width: 90%;
+            max-width: 800px;
+            background: var(--container-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 3rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            position: relative;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+        .back-link:hover {
+            color: var(--accent-hover);
+        }
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin: 0 0 0.5rem 0;
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: var(--text-secondary);
+            margin: 0 0 2rem 0;
+        }
+        p.description {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: var(--text-primary);
+            margin-bottom: 2.5rem;
+            background: rgba(255,255,255,0.02);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+        .status {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 999px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+        }
+        .status.available { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .status.borrowed { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        
+        button {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+        }
+        button:active { transform: scale(0.98); }
+        button.borrow-btn { background: var(--accent); color: white; }
+        button.borrow-btn:hover { background: var(--accent-hover); }
+        button.return-btn { background: var(--accent-return); color: white; }
+        button.return-btn:hover { background: var(--accent-return-hover); }
+
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: rgba(30, 41, 59, 0.9);
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 1rem;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: opacity 0.5s, bottom 0.5s;
+        }
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+        .loader {
+            text-align: center;
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="content">
+        <div class="loader">Loading book details...</div>
+    </div>
+
+    <div id="toast">Message goes here</div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const titleParam = urlParams.get('title');
+
+        async function fetchBookDetail() {
+            if (!titleParam) {
+                document.getElementById('content').innerHTML = `<h2>No book title specified.</h2><a href="/" class="back-link">← Back to Library</a>`;
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/book?title=' + encodeURIComponent(titleParam));
+                if (response.status === 404) {
+                    document.getElementById('content').innerHTML = `<h2>Book not found.</h2><a href="/" class="back-link">← Back to Library</a>`;
+                    return;
+                }
+
+                const book = await response.json();
+                renderBook(book);
+            } catch (error) {
+                console.error("Error fetching book:", error);
+                document.getElementById('content').innerHTML = `<h2>Error loading book details.</h2><a href="/" class="back-link">← Back to Library</a>`;
+            }
+        }
+
+        function renderBook(book) {
+            const container = document.getElementById('content');
+            
+            const isAvail = book.available;
+            const statusClass = isAvail ? 'available' : 'borrowed';
+            const statusText = isAvail ? 'Available' : 'Borrowed';
+            
+            const btnClass = isAvail ? 'borrow-btn' : 'return-btn';
+            const btnText = isAvail ? 'Borrow Book' : 'Return Book';
+            const action = isAvail ? 'borrow' : 'return';
+
+            container.innerHTML = `
+                <a href="/" class="back-link">← Back to Library</a>
+                <div class="status ${statusClass}">${statusText}</div>
+                <h1>${book.title}</h1>
+                <h2>By ${book.author}</h2>
+                
+                <p class="description">${book.description}</p>
+                
+                <button class="${btnClass}" onclick="performAction('${action}', '${book.title}', '${book.author}')">${btnText}</button>
+            `;
+        }
+
+        async function performAction(action, title, author) {
+            try {
+                const response = await fetch('/api/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=${action}&title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}`
+                });
+                if(response.status === 401) {
+                    showToast("Please return to the main catalog and log in first.");
+                    return;
+                }
+                const result = await response.json();
+                showToast(result.message);
+                
+                // Refresh data
+                fetchBookDetail();
+            } catch (error) {
+                console.error("Action error:", error);
+                showToast("Action failed.");
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById("toast");
+            toast.innerText = msg;
+            toast.className = "show";
+            setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
+        }
+
+        // Initialize display
+        fetchBookDetail();
+    </script>
+</body>
+</html>
